@@ -9,7 +9,60 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      employee_feedback: {
+        Row: {
+          company_culture_score: number | null
+          created_at: string
+          department: string | null
+          employee_name: string | null
+          growth_opportunities_score: number | null
+          happiness_index: number | null
+          id: string
+          leadership_score: number | null
+          open_comments: string | null
+          processed_at: string
+          satisfaction_score: number | null
+          sentiment_label: string | null
+          sentiment_score: number | null
+          team_dynamics_score: number | null
+          timestamp: string
+        }
+        Insert: {
+          company_culture_score?: number | null
+          created_at?: string
+          department?: string | null
+          employee_name?: string | null
+          growth_opportunities_score?: number | null
+          happiness_index?: number | null
+          id?: string
+          leadership_score?: number | null
+          open_comments?: string | null
+          processed_at?: string
+          satisfaction_score?: number | null
+          sentiment_label?: string | null
+          sentiment_score?: number | null
+          team_dynamics_score?: number | null
+          timestamp: string
+        }
+        Update: {
+          company_culture_score?: number | null
+          created_at?: string
+          department?: string | null
+          employee_name?: string | null
+          growth_opportunities_score?: number | null
+          happiness_index?: number | null
+          id?: string
+          leadership_score?: number | null
+          open_comments?: string | null
+          processed_at?: string
+          satisfaction_score?: number | null
+          sentiment_label?: string | null
+          sentiment_score?: number | null
+          team_dynamics_score?: number | null
+          timestamp?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

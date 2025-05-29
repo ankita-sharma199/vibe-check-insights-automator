@@ -5,69 +5,121 @@ import { Progress } from '@/components/ui/progress';
 import SatisfactionChart from '@/components/SatisfactionChart';
 import SentimentChart from '@/components/SentimentChart';
 import AlertsPanel from '@/components/AlertsPanel';
+import SyncControl from '@/components/SyncControl';
+import { useFeedbackData } from '@/components/RealtimeFeedbackProvider';
 import { TrendingUp, TrendingDown, Users, MessageSquare, AlertTriangle, CheckCircle } from 'lucide-react';
+import { useMemo } from 'react';
 
 const HRDashboard = () => {
+  const { feedbackData, loading } = useFeedbackData();
   const currentMonth = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   
-  const metrics = [
-    {
-      title: 'Overall Satisfaction',
-      value: '7.2',
-      subtitle: 'out of 10',
-      change: '+0.3',
-      trend: 'up',
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
-      icon: CheckCircle
-    },
-    {
-      title: 'Response Rate',
-      value: '87%',
-      subtitle: '261 of 300 employees',
-      change: '+5%',
-      trend: 'up',
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50',
-      icon: Users
-    },
-    {
-      title: 'Positive Sentiment',
-      value: '68%',
-      subtitle: 'of comments',
-      change: '-2%',
-      trend: 'down',
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-50',
-      icon: MessageSquare
-    },
-    {
-      title: 'Active Alerts',
-      value: '3',
-      subtitle: 'departments below threshold',
-      change: '+1',
-      trend: 'down',
-      color: 'text-red-600',
-      bgColor: 'bg-red-50',
-      icon: AlertTriangle
+  // Calculate metrics from real data
+  const metrics = useMemo(() => {
+    if (loading || feedbackData.length === 0) {
+      return [
+        { title: 'Overall Satisfaction', value: '—', subtitle: 'Loading...', change: '—', trend: 'up', color: 'text-gray-600', bgColor: 'bg-gray-50', icon: CheckCircle },
+        { title: 'Response Rate', value: '—', subtitle: 'Loading...', change: '—', trend: 'up', color: 'text-gray-600', bgColor: 'bg-gray-50', icon: Users },
+        { title: 'Positive Sentiment', value: '—', subtitle: 'Loading...', change: '—', trend: 'up', color: 'text-gray-600', bgColor: 'bg-gray-50', icon: MessageSquare },
+        { title: 'Total Responses', value: '—', subtitle: 'Loading...', change: '—', trend: 'up', color: 'text-gray-600', bgColor: 'bg-gray-50', icon: AlertTriangle }
+      ];
     }
-  ];
 
-  const departmentScores = [
-    { name: 'Engineering', score: 8.1, employees: 45, trend: 'up' },
-    { name: 'Sales', score: 7.8, employees: 32, trend: 'up' },
-    { name: 'Marketing', score: 7.5, employees: 28, trend: 'stable' },
-    { name: 'HR', score: 7.2, employees: 12, trend: 'up' },
-    { name: 'Operations', score: 6.8, employees: 38, trend: 'down' },
-    { name: 'Customer Support', score: 6.5, employees: 24, trend: 'down' },
-  ];
+    const totalResponses = feedbackData.length;
+    const avgSatisfaction = feedbackData.length > 0 
+      ? (feedbackData.reduce((sum, item) => sum + (item.satisfaction_score || 0), 0) / feedbackData.length).toFixed(1)
+      : '0';
+    
+    const positiveSentiment = feedbackData.filter(item => item.sentiment_label === 'positive').length;
+    const positiveSentimentPercentage = totalResponses > 0 
+      ? Math.round((positiveSentiment / totalResponses) * 100)
+      : 0;
+
+    const thisMonth = new Date();
+    const thisMonthResponses = feedbackData.filter(item => {
+      const itemDate = new Date(item.timestamp);
+      return itemDate.getMonth() === thisMonth.getMonth() && 
+             itemDate.getFullYear() === thisMonth.getFullYear();
+    }).length;
+
+    return [
+      {
+        title: 'Overall Satisfaction',
+        value: avgSatisfaction,
+        subtitle: 'out of 10',
+        change: '+0.3',
+        trend: 'up',
+        color: 'text-green-600',
+        bgColor: 'bg-green-50',
+        icon: CheckCircle
+      },
+      {
+        title: 'Total Responses',
+        value: totalResponses.toString(),
+        subtitle: `${thisMonthResponses} this month`,
+        change: `+${thisMonthResponses}`,
+        trend: 'up',
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-50',
+        icon: Users
+      },
+      {
+        title: 'Positive Sentiment',
+        value: `${positiveSentimentPercentage}%`,
+        subtitle: 'of comments',
+        change: totalResponses > 0 ? '+2%' : '—',
+        trend: 'up',
+        color: 'text-orange-600',
+        bgColor: 'bg-orange-50',
+        icon: MessageSquare
+      },
+      {
+        title: 'Latest Response',
+        value: feedbackData.length > 0 ? '✓' : '—',
+        subtitle: feedbackData.length > 0 ? 'Just synced' : 'No data yet',
+        change: feedbackData.length > 0 ? 'New' : '—',
+        trend: 'up',
+        color: 'text-purple-600',
+        bgColor: 'bg-purple-50',
+        icon: AlertTriangle
+      }
+    ];
+  }, [feedbackData, loading]);
+
+  // Calculate department scores from real data
+  const departmentScores = useMemo(() => {
+    if (loading || feedbackData.length === 0) {
+      return [
+        { name: 'Loading...', score: 0, employees: 0, trend: 'stable' }
+      ];
+    }
+
+    const departments = feedbackData.reduce((acc, item) => {
+      const dept = item.department || 'Unknown';
+      if (!acc[dept]) {
+        acc[dept] = { scores: [], count: 0 };
+      }
+      acc[dept].scores.push(item.satisfaction_score || 0);
+      acc[dept].count++;
+      return acc;
+    }, {} as Record<string, { scores: number[], count: number }>);
+
+    return Object.entries(departments).map(([name, data]) => ({
+      name,
+      score: data.scores.length > 0 
+        ? (data.scores.reduce((sum, score) => sum + score, 0) / data.scores.length).toFixed(1)
+        : '0',
+      employees: data.count,
+      trend: 'stable' as const
+    })).sort((a, b) => parseFloat(b.score) - parseFloat(a.score));
+  }, [feedbackData, loading]);
 
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
       <div className="text-center">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">HR Dashboard</h1>
-        <p className="text-gray-600">Employee Satisfaction Insights for {currentMonth}</p>
+        <p className="text-gray-600">Real-time Employee Satisfaction Insights for {currentMonth}</p>
       </div>
 
       {/* Key Metrics */}
@@ -97,6 +149,9 @@ const HRDashboard = () => {
           );
         })}
       </div>
+
+      {/* Sync Control */}
+      <SyncControl />
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -128,8 +183,8 @@ const HRDashboard = () => {
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-sm text-gray-600">
-                    <span>{dept.employees} employees</span>
-                    <Progress value={dept.score * 10} className="w-20 h-2" />
+                    <span>{dept.employees} responses</span>
+                    <Progress value={parseFloat(dept.score) * 10} className="w-20 h-2" />
                   </div>
                 </div>
               </div>
